@@ -3,6 +3,7 @@ import GithubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
+import token from "crypto-token";
 import sgMail from "@sendgrid/mail";
 import JWT from "jsonwebtoken";
 
@@ -116,12 +117,12 @@ async function handleSignUp(credentials: typeof credentialsProperties) {
   if (userCheck == null) {
     const hashedPassword = await bcrypt.hash(userDetails.password, 10);
     userDetails.password = hashedPassword;
-
+    const verificationToken = token(32);
     const jwt = JWT.sign(
-      { email: userDetails.email },
+      { email: userDetails.email, token: verificationToken },
       process.env.VERIFICATION_SECRET,
       {
-        expiresIn: 60 * 5,
+        expiresIn: 1 * 5,
       }
     );
 
@@ -134,7 +135,7 @@ async function handleSignUp(credentials: typeof credentialsProperties) {
         verificationJWT: jwt,
       },
     });
-    const verifyURL = process.env.NEXTAUTH_URL + "/verify/" + jwt;
+    const verifyURL = process.env.NEXTAUTH_URL + "verify/" + verificationToken;
     const msg = {
       to: userDetails.email, // Change to your recipient
       from: "noreply.starclips@gmail.com", // Change to your verified sender

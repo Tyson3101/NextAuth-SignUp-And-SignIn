@@ -18,22 +18,20 @@ function VerifyPassword() {
     if (!session?.user || !jwt || jwt?.length < 20) {
       router.push("/");
     } else {
-      if (session.user.verificationJWT?.includes(jwt)) {
-        fetch("/api/updateUser", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            changeVerificationStatus: true,
-            verificationJWT: jwt,
-          }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.error) setMsg(data.error);
-            else setMsg(data.successMsg);
-            setSkip(true);
-          });
-      }
+      fetch("/api/updateUser", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          changeVerificationStatus: true,
+          verificationToken: jwt,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) setMsg(data.error);
+          else setMsg(data.successMsg);
+          setSkip(true);
+        });
     }
   }
 

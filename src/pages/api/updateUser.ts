@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import sgMail from "@sendgrid/mail";
 import JWT from "jsonwebtoken";
+import token from "crypto-token";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { unstable_getServerSession } from "next-auth";
 import { authOptions } from "./auth/[...nextauth]";
@@ -21,19 +22,25 @@ export default async function handler(
     });
     try {
       const verifyJWT = JWT.verify(
-        req.body.verificationJWT,
+        checkUser.verificationJWT,
         process.env.VERIFICATION_SECRET
-      ) as { email: string } | undefined;
-      console.log(
-        verifyJWT,
-        req.body.verificationJWT.includes(checkUser.verificationJWT)
-      );
-      if (verifyJWT?.email === checkUser.email) {
+      ) as { email: string; token: string } | undefined;
+
+      if (
+        verifyJWT?.email === checkUser.email &&
+        verifyJWT?.token === req.body.verificationToken
+      ) {
         await prisma.user.update({
           where: { email: user.email },
           data: { verificationJWT: null, isVerified: true },
         });
         return res.status(200).json({ successMsg: "Verified!" });
+      } else {
+        console.log(
+          verifyJWT?.email === checkUser.email &&
+            verifyJWT?.token === req.body.verificationToken
+        );
+        return res.status(404).send({ error: "Not Authorized" });
       }
     } catch (e) {
       return res.status(404).send({ error: e.message });
@@ -43,9 +50,10 @@ export default async function handler(
     const checkUser = await prisma.user.findFirst({
       where: { email: user.email },
     });
-    if (!checkUser) return res.send(404);
+    if (!checkUser || checkUser.isVerified) return res.send(404);
+    const verificationToken = token(32);
     const jwt = JWT.sign(
-      { email: user.email },
+      { email: user.email, token: verificationToken },
       process.env.VERIFICATION_SECRET,
       {
         expiresIn: 60 * 5,
@@ -55,7 +63,7 @@ export default async function handler(
       where: { email: user.email },
       data: { verificationJWT: jwt },
     });
-    const verifyURL = process.env.NEXTAUTH_URL + "/verify/" + jwt;
+    const verifyURL = process.env.NEXTAUTH_URL + "verify/" + verificationToken;
     const msg = {
       to: user.email, // Change to your recipient
       from: "noreply.starclips@gmail.com", // Change to your verified sender
