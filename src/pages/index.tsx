@@ -80,6 +80,13 @@ const Home: NextPage = () => {
           Github
         </a>
       </span>
+      <button
+        onClick={() => {
+          fetch("/api/database/delete").then(() => window.location.reload());
+        }}
+      >
+        Delete all users
+      </button>
     </>
   );
 };

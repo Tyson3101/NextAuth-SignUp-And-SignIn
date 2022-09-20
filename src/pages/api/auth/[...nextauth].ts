@@ -116,10 +116,15 @@ async function handleSignUp(credentials: typeof credentialsProperties) {
   if (userCheck == null) {
     const hashedPassword = await bcrypt.hash(userDetails.password, 10);
     userDetails.password = hashedPassword;
-    const jwt = JWT.sign({ email: userDetails }, "secret", {
-      expiresIn: 60 * 5,
-    });
-    console.log(jwt);
+
+    const jwt = JWT.sign(
+      { email: userDetails.email },
+      process.env.VERIFICATION_SECRET,
+      {
+        expiresIn: 60 * 5,
+      }
+    );
+
     await prisma.user.create({
       data: {
         email: userDetails.email,
@@ -129,18 +134,13 @@ async function handleSignUp(credentials: typeof credentialsProperties) {
         verificationJWT: jwt,
       },
     });
-    const shortenJWT = jwt;
-    jwt.slice(
-      Math.floor(Math.random() * 10),
-      Math.floor(50 + Math.random() * 30)
-    );
-    console.log({ shortenJWT });
+    const verifyURL = process.env.NEXTAUTH_URL + "/verify/" + jwt;
     const msg = {
       to: userDetails.email, // Change to your recipient
       from: "noreply.starclips@gmail.com", // Change to your verified sender
       subject: "Verify Email",
-      text: `Please verify your email with this link: http://localhost:3000/verify/${shortenJWT}`,
-      html: `<strong>Please verify your email with this link: <a href="http://localhost:3000/verify/${shortenJWT}">http://localhost:3000/verify/${shortenJWT}</a></strong>`,
+      text: `Please verify your email with this link: ${verifyURL}`,
+      html: `<strong>Please verify your email with this link: <a href="${verifyURL}">${verifyURL}</a></strong>`,
     };
     sgMail
       .send(msg)
